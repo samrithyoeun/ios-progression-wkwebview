@@ -7,14 +7,80 @@
 //
 
 import UIKit
+import WebKit
 
 class ViewController: UIViewController {
+    private var webView: WKWebView!
+let progressView = UIProgressView(progressViewStyle: .default)
+    private var estimatedProgressObserver: NSKeyValueObservation?
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view.
+        title = "Web View"
+        webView = WKWebView(frame: view.bounds)
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        
+        setupProgressView()
+        setupEstimatedProgressObserver()
+
+        if let initialUrl = URL(string: "https://www.truemoney.com.kh/term_condition/privacy-policy/") {
+            setupWebview(url: initialUrl)
+        }
+        self.view.addSubview(webView)
     }
 
+    private func setupProgressView() {
+        guard let navigationBar = navigationController?.navigationBar else { return }
 
+        progressView.progressTintColor = .red
+        progressView.translatesAutoresizingMaskIntoConstraints = false
+        navigationBar.addSubview(progressView)
+
+        progressView.isHidden = true
+
+        NSLayoutConstraint.activate([
+            progressView.leadingAnchor.constraint(equalTo: navigationBar.leadingAnchor),
+            progressView.trailingAnchor.constraint(equalTo: navigationBar.trailingAnchor),
+
+            progressView.bottomAnchor.constraint(equalTo: navigationBar.bottomAnchor),
+            progressView.heightAnchor.constraint(equalToConstant: 2.0)
+        ])
+    }
+
+    private func setupEstimatedProgressObserver() {
+        estimatedProgressObserver = webView.observe(\.estimatedProgress, options: [.new]) { [weak self] webView, _ in
+            self?.progressView.progress = Float(webView.estimatedProgress)
+        }
+    }
+
+    private func setupWebview(url: URL) {
+        let request = URLRequest(url: url)
+
+        webView.navigationDelegate = self
+        webView.load(request)
+    }
 }
 
+// MARK: - WKNavigationDelegate
+extension ViewController: WKNavigationDelegate {
+    func webView(_: WKWebView, didStartProvisionalNavigation _: WKNavigation!) {
+        if progressView.isHidden {
+            progressView.isHidden = false
+        }
+
+        UIView.animate(withDuration: 0.33,
+                       animations: {
+                           self.progressView.alpha = 1.0
+        })
+    }
+
+    func webView(_: WKWebView, didFinish _: WKNavigation!) {
+        UIView.animate(withDuration: 0.33,
+                       animations: {
+                           self.progressView.alpha = 0.0
+                       },
+                       completion: { isFinished in
+                           self.progressView.isHidden = isFinished
+        })
+    }
+}
